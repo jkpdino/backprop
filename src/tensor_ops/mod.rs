@@ -2,11 +2,13 @@ pub mod add;
 pub mod mse;
 pub mod matmul;
 mod relu;
+mod softmax;
 
 use downcast_rs::{impl_downcast, DowncastSync};
 pub use mse::mse;
 pub use matmul::matmul;
 pub use relu::relu;
+pub use softmax::softmax;
 
 use crate::{device::Device, tensor::{Shape, Tensor}};
 

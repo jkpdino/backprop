@@ -22,7 +22,7 @@ criterion = nn.MSELoss()  # Mean Squared Error loss
 optimizer = optim.SGD(net.parameters(), lr=0.01)  # Stochastic Gradient Descent optimizer
 
 # Training loop
-num_epochs = 1000
+num_epochs = 1000000
 for epoch in range(num_epochs):
     inputs = torch.randn(1, 1)  # Generate a random input value
     target = inputs ** 2  # Calculate the target value (x^2)

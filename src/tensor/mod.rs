@@ -41,6 +41,10 @@ impl<S: Shape> Tensor<S> {
 
         todo!()
     }
+
+    pub fn size(&self) -> usize {
+        S::SIZE
+    }
 }
 
 impl<S: Shape> Tensor<S> {
