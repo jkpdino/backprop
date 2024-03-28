@@ -2,7 +2,7 @@ use std::{cell::UnsafeCell, collections::HashMap, sync::{Arc, Weak}};
 
 use rand_distr::Distribution;
 
-use crate::tensor::{inner::TensorInner, source::TensorSource, Shape, Tensor, TensorId};
+use crate::{nn::{layers::LayerBuilder, Model}, tensor::{inner::TensorInner, source::TensorSource, Shape, Tensor, TensorId}};
 
 pub struct DeviceInner {
     tensor_buffers: HashMap<TensorId, Arc<TensorInner>>,
@@ -44,6 +44,15 @@ impl Device {
         }
     }
 
+    ///
+    /// Builds a model from a LayerBuilder, initializing all the weights.
+    /// 
+    pub fn build_model<L: LayerBuilder>(&self, builder: L) -> Model<L::Layer> {
+        let layer = builder.build_layer(self);
+
+        Model { layer }
+    }
+
     /// 
     /// Resets all gradient vectors
     /// 
@@ -77,8 +86,8 @@ impl Device {
     ///
     /// Create a tensor with the given data
     /// 
-    pub fn constant<S: Shape>(&self, data: Vec<f32>) -> Tensor<S> {
-        self.allocate_tensor(data, TensorSource::Constant)
+    pub fn constant<S: Shape>(&self, data: &[f32]) -> Tensor<S> {
+        self.allocate_tensor(data.to_vec(), TensorSource::Constant)
     }
 
     ///

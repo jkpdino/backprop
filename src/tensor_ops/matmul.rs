@@ -19,7 +19,7 @@ pub trait MatMul<S: Shape>: Shape + Sized {
 impl<const A: usize, const B: usize, const C: usize> MatMul<Rank2<B, C>> for Rank2<A, B> {
     type MulOutput = Rank2<A, C>;
 
-    fn dispatch(a: Tensor<Self>, b: Tensor<Rank2<B, C>>) -> Tensor<Self::MulOutput> {
+    fn dispatch(_a: Tensor<Self>, _b: Tensor<Rank2<B, C>>) -> Tensor<Self::MulOutput> {
         todo!()
     }
 }

@@ -1,10 +1,13 @@
 use device::Device;
-use rand::thread_rng;
+use digit::{DatasetType, MNISTDataset};
+use kdam::tqdm;
+use nn::Loss;
 use rand_distr::Distribution;
 use tensor::Rank1;
-use tensor_ops::relu;
 
-use crate::{tensor::{Rank2, Tensor}, tensor_ops::{matmul, mse, softmax}};
+use crate::{nn::{layers::{Convolution2d, Linear, Reshape}, Activation}, tensor::{Rank2, Tensor}};
+
+mod digit;
 
 pub mod tensor;
 pub mod device;
@@ -14,46 +17,80 @@ pub mod nn;
 fn main() {
     let device = Device::new();
 
-    // Classify numbers as positive or negative
+    let model = device.build_model((
+        Reshape::<Rank1<784>, Rank2<28, 28>>::new(),
+        Convolution2d::<28, 28, 3, 3>,
+        Convolution2d::<28, 28, 3, 3>,
+        Reshape::<Rank2<28, 28>, Rank1<784>>::new(),
+        Linear::<784, 10>(Activation::Softmax),
+        //Linear::<49, 10>(Activation::Softmax)
+    ));
 
-    let weights_a: Tensor<Rank2<1, 10>> = device.sample();
-    let biases_a: Tensor<Rank1<10>> = device.sample();
+    let loss_function = Loss::CrossEntropy;
 
-    let weights_b: Tensor<Rank2<10, 2>> = device.sample();
-    let biases_b: Tensor<Rank1<2>> = device.sample();
+    let epochs = 5;
 
-    let nn = |input: Tensor<Rank1<1>>| {
-        let a = relu(matmul(input, weights_a.clone()) + biases_a.clone());
-        let b = softmax(matmul(a, weights_b.clone()) + biases_b.clone());
+    let mnist = MNISTDataset::load(DatasetType::Train).unwrap();
 
-        return b;
-    };
+    let targets = (0..10).map(|n| {
+        let mut target = vec![0.0f32; 10];
+        target[n] = 1.0f32;
+        device.constant(&target)
+    }).collect::<Vec<_>>();
 
-    let mut rng = rand::thread_rng();
-    let distr = rand_distr::Normal::new(0.0f32, 1.0f32).unwrap();
+    for i in 0..epochs {
+        let mut loss = 0.0;
 
-    let mut losses = vec![];
+        for row in tqdm!(mnist.rows().iter()) {
+            let x_tensor: Tensor<Rank1<784>> = device.constant(&row.pixels);
+            let y_tensor = targets[row.label].clone();
 
+            let output = model.forward(x_tensor);
 
-    for i in 0..100000 {
-        let x = distr.sample(&mut rng);
-        let y = if x > 0.0 { vec![1.0, 0.0] } else { vec![0.0, 1.0] };
+            let loss_value = loss_function.apply(output, y_tensor);
 
-        let input = device.constant(vec![x]);
-        let target = device.constant(y);
+            let loss_num = device.get_tensor_buffer(&loss_value)[0];
+            if loss_num.is_nan() {
+                println!("loss is nan");
+                break;
+            }
+            loss += loss_num;
 
-        let output = nn(input);
+            device.zero_grad();
+            loss_value.back();
+            device.nudge_weights(0.01);
+        }
 
-        let loss = mse(output, target);
-
-        let loss_num = device.get_tensor_buffer(&loss)[0];
-    
-        device.zero_grad();
-        loss.back();
-        device.nudge_weights(0.01);
-
-        losses.push(device.get_tensor_buffer(&loss)[0]);
+        let average_loss = loss / (mnist.rows().len() as f32);
+        println!("epoch {i}: loss={average_loss}");
     }
 
-    println!("loss: {}", losses[losses.len() - 10..].iter().sum::<f32>() / 10.0);
+    let mut correct = 0;
+
+    let test = MNISTDataset::load(DatasetType::Test).unwrap();
+
+    for row in tqdm!(test.rows().iter()) {
+        let x_tensor: Tensor<Rank1<784>> = device.constant(&row.pixels);
+
+        let output = model.forward(x_tensor);
+        let output_buffer = device.get_tensor_buffer(&output);
+
+        let mut max = 0.0;
+        let mut max_index = 0;
+
+        //println!("output: {:?} {}", output_buffer, row.label);
+
+        for (i, n) in output_buffer.iter().enumerate() {
+            if n > &max {
+                max = *n;
+                max_index = i;
+            }
+        }
+
+        if max_index == row.label {
+            correct += 1;
+        }
+    }
+
+    println!("testing: {} / {}", correct, test.rows().len());
 }

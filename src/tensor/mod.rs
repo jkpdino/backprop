@@ -1,6 +1,6 @@
-use std::{marker::PhantomData, process::Output, sync::Arc};
+use std::{marker::PhantomData, sync::Arc};
 
-use crate::{device::Device, tensor_ops::{add::TensorAdd, mse::MeanSquaredError, DispatchTensorOp}};
+use crate::device::Device;
 
 use self::{inner::TensorInner, source::TensorSource};
 pub use self::shape::*;
@@ -39,7 +39,14 @@ impl<S: Shape> Tensor<S> {
     pub fn reshape<Output: Shape>(&self) -> Tensor<Output> {
         assert_eq!(S::SIZE, Output::SIZE);
 
-        todo!()
+        Tensor {
+            id: self.id,
+            inner: self.inner.clone(),
+            device: self.device.clone(),
+            source: self.source.clone(),
+
+            _shape: PhantomData,
+        }
     }
 
     pub fn size(&self) -> usize {

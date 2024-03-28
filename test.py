@@ -1,46 +1,69 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
+import torch.nn.functional as F
+from torchvision import datasets, transforms
 
-# Define the neural network
-class Net(nn.Module):
+# Define the model
+class MNISTModel(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
-        self.fc1 = nn.Linear(1, 10)  # Input layer (1 input, 10 hidden nodes)
-        self.fc2 = nn.Linear(10, 1)  # Output layer (10 hidden nodes, 1 output)
+        super(MNISTModel, self).__init__()
+        self.fc1 = nn.Linear(784, 49)
+        # self.fc2 = nn.Linear(196, 49)  # Commented out as per the provided architecture
+        self.fc3 = nn.Linear(49, 49)
+        self.fc4 = nn.Linear(49, 10)
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))  # Apply ReLU activation to the hidden layer
-        x = self.fc2(x)  # Output layer
+        x = x.view(-1, 784)
+        x = F.relu(self.fc1(x))
+        # x = F.relu(self.fc2(x))  # Commented out as per the provided architecture
+        x = F.relu(self.fc3(x))
+        x = F.softmax(self.fc4(x), dim=1)
         return x
 
-# Create the neural network
-net = Net()
+# Load the MNIST dataset
+train_dataset = datasets.MNIST(root='./data', train=True, transform=transforms.ToTensor(), download=True)
+test_dataset = datasets.MNIST(root='./data', train=False, transform=transforms.ToTensor())
 
-# Define the loss function and optimizer
-criterion = nn.MSELoss()  # Mean Squared Error loss
-optimizer = optim.SGD(net.parameters(), lr=0.01)  # Stochastic Gradient Descent optimizer
+# Create data loaders
+batch_size = 64
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+# Initialize the model, loss function, and optimizer
+model = MNISTModel()
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 # Training loop
-num_epochs = 1000000
+num_epochs = 5
 for epoch in range(num_epochs):
-    inputs = torch.randn(1, 1)  # Generate a random input value
-    target = inputs ** 2  # Calculate the target value (x^2)
+    running_loss = 0.0
+    for i, data in enumerate(train_loader, 0):
+        inputs, labels = data
+        outputs = model(inputs)
 
-    # Forward pass
-    outputs = net(inputs)
-    loss = criterion(outputs, target)
+        loss = criterion(outputs, labels)
 
-    # Backward pass and optimization
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-    # Print the loss every 1000 epochs
-    if (epoch + 1) % 100 == 0:
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
+        running_loss += loss.item()
+        if i % 100 == 99:
+            print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 100))
+            running_loss = 0.0
 
-# Test the neural network
-test_input = torch.tensor([[1.0]])  # Test input
-test_output = net(test_input)
-print(f'Input: {test_input.item()}, Predicted Output: {test_output.item():.4f}, Expected Output: {test_input.item() ** 2:.4f}')
+print('Finished Training')
+
+# Test the model
+correct = 0
+total = 0
+with torch.no_grad():
+    for data in test_loader:
+        images, labels = data
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+print('Accuracy of the model on the test images: %d %%' % (100 * correct / total))
