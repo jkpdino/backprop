@@ -1,4 +1,4 @@
-use crate::{device::Device, nn::Activation, tensor::{Rank1, Rank2, Tensor}, tensor_ops::matmul};
+use crate::{device::Device, nn::Activation, tensor::{inner::TensorInner, Rank1, Rank2, Tensor, TensorRef}, tensor_ops::matmul};
 
 use super::{Layer, LayerBuilder};
 
@@ -42,5 +42,9 @@ impl<const I: usize, const O: usize> Layer for LinearLayer<I, O> {
         let a = matmul(input, self.weights.clone()) + self.bias.clone();
 
         self.activation.apply(a)
+    }
+    
+    fn get_tensors(&self) -> Vec<TensorRef> {
+        vec![ self.weights.as_ref(), self.bias.as_ref() ]
     }
 }

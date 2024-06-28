@@ -11,6 +11,7 @@ downcast-rs = "1.2.0"
 kdam = "0.5.1"
 rand = "0.8.5"
 rand_distr = "0.4.3"
+simple_moving_average = "1.0.2"
 
 [profile.release]
 debug = true

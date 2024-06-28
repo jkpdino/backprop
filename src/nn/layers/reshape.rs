@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::tensor::Shape;
+use crate::tensor::{inner::TensorInner, Shape, TensorRef};
 
 use super::LayerBuilder;
 
@@ -44,5 +44,9 @@ impl<From: Shape, To: Shape> super::Layer for ReshapeLayer<From, To> {
 
     fn forward(&self, input: crate::tensor::Tensor<Self::InputShape>) -> crate::tensor::Tensor<Self::OutputShape> {
         input.reshape()
+    }
+    
+    fn get_tensors(&self) -> Vec<TensorRef> {
+        vec![]
     }
 }

@@ -7,13 +7,14 @@ pub use linear::*;
 pub use conv2d::*;
 pub use reshape::*;
 
-use crate::{device::Device, tensor::{Shape, Tensor}};
+use crate::{device::Device, tensor::{inner::TensorInner, Shape, Tensor, TensorRef}};
 
 pub trait Layer {
     type InputShape: Shape;
     type OutputShape: Shape;
 
     fn forward(&self, input: Tensor<Self::InputShape>) -> Tensor<Self::OutputShape>;
+    fn get_tensors(&self) -> Vec<TensorRef>;
 }
 
 pub trait LayerBuilder {

@@ -1,5 +1,7 @@
 use std::fs::File;
 
+use crate::{device::Device, nn::{layers::{Convolution2d, Layer, Linear, Reshape}, Activation, Model}, tensor::{Rank1, Rank2}};
+
 pub enum DatasetType {
     Test,
     Train,
@@ -48,15 +50,25 @@ impl MNISTDataset {
     }
 }
 
-pub fn mnist_model() {
-    /*
+pub fn mnist_model(device: &Device) -> Model<impl Layer<InputShape = Rank1<784>, OutputShape = Rank1<10>>> {
     let model = device.build_model((
-        (Conv2d::<3, 3>, MaxPool2d::<2, 2>),
-        (Conv2d::<3, 3>, MaxPool2d::<2, 2>),
-        (Conv2d::<3, 3>, MaxPool2d::<2, 2>),
-        Reshape::<Rank2<7, 7>, Rank1<49>>,
-        Linear::<49, 196>(Activation::ReLU),
-        Linear::<196, 10>(Activation::Softmax)
+        // Reshape the data to a 2d image
+        Reshape::<Rank1<784>, Rank2<28, 28>>::new(),
+
+        // Go through a series of convolutions
+        (
+            Convolution2d::<28, 28, 5, 5>(Activation::ReLU),
+            Convolution2d::<28, 28, 7, 7>(Activation::ReLU),
+        ),
+
+        // Reshape the data back to a 1d line
+        Reshape::<Rank2<28, 28>, Rank1<784>>::new(),
+
+        // Run a series of linear transforms
+        (
+            Linear::<784, 10>(Activation::Softmax)
+        )
     ));
-     */
+
+    return model;
 }

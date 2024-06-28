@@ -17,6 +17,7 @@ dependencies = [
  "kdam",
  "rand",
  "rand_distr",
+ "simple_moving_average",
 ]
 
 [[package]]
@@ -230,6 +231,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "simple_moving_average"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a4b144ad185430cd033299e2c93e465d5a7e65fbb858593dc57181fa13cd310"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]

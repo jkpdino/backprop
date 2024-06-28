@@ -1,8 +1,8 @@
-use std::{cell::UnsafeCell, collections::HashMap, sync::{Arc, Weak}};
+use std::{cell::UnsafeCell, collections::HashMap, sync::Arc};
 
 use rand_distr::Distribution;
 
-use crate::{nn::{layers::LayerBuilder, Model}, tensor::{inner::TensorInner, source::TensorSource, Shape, Tensor, TensorId}};
+use crate::{nn::{layers::{Layer, LayerBuilder}, optimizer::OptimizerConfig, Model}, tensor::{inner::TensorInner, source::TensorSource, Shape, Tensor, TensorId}};
 
 pub struct DeviceInner {
     tensor_buffers: HashMap<TensorId, Arc<TensorInner>>,
@@ -54,6 +54,15 @@ impl Device {
     }
 
     /// 
+    /// Builds an optimizer from a model and an OptimizerConfig
+    /// 
+    pub fn build_optimizer<O: OptimizerConfig>(&self, model: &Model<impl Layer>, cfg: O) -> O::Optimizer {
+        let tensors = model.layer.get_tensors();
+
+        cfg.build_optimizer(tensors, self.clone())
+    }
+
+    /// 
     /// Resets all gradient vectors
     /// 
     pub fn zero_grad(&self) {
@@ -61,22 +70,6 @@ impl Device {
 
         for buffer in inner.tensor_buffers.values() {
             buffer.gradient_mut().fill(0.0);
-        }
-    }
-
-    ///
-    /// TODO: temporary function
-    /// 
-    pub fn nudge_weights(&self, amt: f32) {
-        let inner = self.inner();
-
-        for buffer in inner.tensor_buffers.values() {
-            let gradient = buffer.gradient();
-            let params = buffer.buffer_mut();
-
-            for i in 0..params.len() {
-                params[i] -= amt * gradient[i];
-            }
         }
     }
 }

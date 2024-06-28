@@ -1,11 +1,13 @@
+use std::error::Error;
+
 use device::Device;
 use digit::{DatasetType, MNISTDataset};
 use kdam::tqdm;
 use nn::Loss;
-use rand_distr::Distribution;
+use simple_moving_average::{SumTreeSMA, SMA};
 use tensor::Rank1;
 
-use crate::{nn::{layers::{Convolution2d, Linear, Reshape}, Activation}, tensor::{Rank2, Tensor}};
+use crate::{nn::optimizer::SgdConfig, tensor::Tensor};
 
 mod digit;
 
@@ -14,34 +16,34 @@ pub mod device;
 pub mod tensor_ops;
 pub mod nn;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let device = Device::new();
 
-    let model = device.build_model((
-        Reshape::<Rank1<784>, Rank2<28, 28>>::new(),
-        Convolution2d::<28, 28, 3, 3>,
-        Convolution2d::<28, 28, 3, 3>,
-        Reshape::<Rank2<28, 28>, Rank1<784>>::new(),
-        Linear::<784, 10>(Activation::Softmax),
-        //Linear::<49, 10>(Activation::Softmax)
-    ));
+    let model = digit::mnist_model(&device);
+    let training_data = MNISTDataset::load(DatasetType::Train).unwrap();
+    let test_data = MNISTDataset::load(DatasetType::Test).unwrap();
 
     let loss_function = Loss::CrossEntropy;
 
-    let epochs = 5;
-
-    let mnist = MNISTDataset::load(DatasetType::Train).unwrap();
+    let epochs = 20;
 
     let targets = (0..10).map(|n| {
-        let mut target = vec![0.0f32; 10];
-        target[n] = 1.0f32;
-        device.constant(&target)
+        device.constant(&(0..10).map(|i| if i == n { 1.0 } else { 0.0 }).collect::<Vec<_>>())
     }).collect::<Vec<_>>();
+
+    let mut optimizer = device.build_optimizer(&model, SgdConfig {
+        lr: 0.001
+    });
+
+    let mut loss_history = vec![];
+    let mut training_history = vec![];
+
+    let mut sma = SumTreeSMA::<_, f32, 1000>::new();
 
     for i in 0..epochs {
         let mut loss = 0.0;
 
-        for row in tqdm!(mnist.rows().iter()) {
+        for (index, row) in tqdm!(training_data.rows().iter().enumerate()) {
             let x_tensor: Tensor<Rank1<784>> = device.constant(&row.pixels);
             let y_tensor = targets[row.label].clone();
 
@@ -52,45 +54,66 @@ fn main() {
             let loss_num = device.get_tensor_buffer(&loss_value)[0];
             if loss_num.is_nan() {
                 println!("loss is nan");
-                break;
+                continue;
             }
+            sma.add_sample(loss_num);
             loss += loss_num;
 
-            device.zero_grad();
+            loss_history.push(sma.get_average());
+
+            optimizer.zero_grad();
             loss_value.back();
-            device.nudge_weights(0.01);
+            optimizer.step();
         }
 
-        let average_loss = loss / (mnist.rows().len() as f32);
+        let average_loss = loss / (training_data.rows().len() as f32);
         println!("epoch {i}: loss={average_loss}");
-    }
 
-    let mut correct = 0;
+        let mut correct = 0;
 
-    let test = MNISTDataset::load(DatasetType::Test).unwrap();
+        for row in tqdm!(test_data.rows().iter()) {
+            let x_tensor: Tensor<Rank1<784>> = device.constant(&row.pixels);
 
-    for row in tqdm!(test.rows().iter()) {
-        let x_tensor: Tensor<Rank1<784>> = device.constant(&row.pixels);
+            let output = model.forward(x_tensor);
+            let output_buffer = device.get_tensor_buffer(&output);
 
-        let output = model.forward(x_tensor);
-        let output_buffer = device.get_tensor_buffer(&output);
+            let mut max = 0.0;
+            let mut max_index = 0;
 
-        let mut max = 0.0;
-        let mut max_index = 0;
+            //println!("output: {:?} {}", output_buffer, row.label);
 
-        //println!("output: {:?} {}", output_buffer, row.label);
+            for (i, n) in output_buffer.iter().enumerate() {
+                if n > &max {
+                    max = *n;
+                    max_index = i;
+                }
+            }
 
-        for (i, n) in output_buffer.iter().enumerate() {
-            if n > &max {
-                max = *n;
-                max_index = i;
+            if max_index == row.label {
+                correct += 1;
             }
         }
 
-        if max_index == row.label {
-            correct += 1;
-        }
+        training_history.push(correct);
+
+        println!("testing: {} / {}", correct, test_data.rows().len());
     }
 
-    println!("testing: {} / {}", correct, test.rows().len());
+    let mut writer = csv::Writer::from_path("loss.csv")?;
+
+    for loss in loss_history {
+        writer.write_record(&[loss.to_string()])?;
+    }
+
+    writer.flush()?;
+
+    let mut writer = csv::Writer::from_path("training.csv")?;
+
+    for correct in training_history {
+        writer.write_record(&[correct.to_string()])?;
+    }
+
+    writer.flush()?;
+
+    Ok(())
 }

@@ -54,8 +54,11 @@ impl<
 
         let mut output_buffer = vec![0.0; I1 * I2];
 
-        for i in 0..I1 {
-            for j in 0..I2 {
+        let x_off = K1 - 1;
+        let y_off = K2 - 1;
+
+        for i in 0..(I1 - x_off) {
+            for j in 0..(I2 - y_off) {
                 for k in 0..K1 {
                     for l in 0..K2 {
                         output_buffer[i * I2 + j] += input_buffer[(i + k) * I2 + (j + l)] * kernel_buffer[k * K2 + l];
@@ -76,11 +79,14 @@ impl<
         let mut kernel_gradient = vec![0.0; K1 * K2];
         let mut input_gradient = vec![0.0; I1 * I2];
 
+        let x_off = K1 - 1;
+        let y_off = K2 - 1;
+
         // todo: do the math for this
         for i in 0..K1 {
             for j in 0..K2 {
-                for k in 0..I1 {
-                    for l in 0..I2 {
+                for k in 0..(I1 - x_off) {
+                    for l in 0..(I2 - y_off) {
                         kernel_gradient[i * K2 + j] += input_buffer[(k + i) * I2 + (l + j)] * output_gradient[k * I2 + l];
                         input_gradient[(k + i) * I2 + (l + j)] += kernel_buffer[i * K2 + j] * output_gradient[k * I2 + l];
                     }

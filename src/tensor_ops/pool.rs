@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{device::Device, tensor::{source::TensorSource, Shape, Tensor}};
+use crate::{device::Device, tensor::{source::TensorSource, Rank2, Shape, Tensor}};
 
 use super::{DispatchTensorOp, TensorOp};
 
@@ -19,11 +19,11 @@ pub struct TensorMaxpool<S: Shape> {
     pub kernel_size: f32,
 }
 
-impl<S: Shape> TensorOp for TensorMaxpool<S> {
-    type OutputShape = S;
-
+impl<const I1: usize, const I2: usize> TensorOp for TensorMaxpool<Rank2<I1, I2>> {
+    type OutputShape = Rank2<I1, I2 + 1>;
+    
     fn backprop(&self, device: &Device, output: &Tensor<Self::OutputShape>) {
-        device.back_dispatch(self, output);
+        device.back_dispatch(self, output)
     }
 }
 

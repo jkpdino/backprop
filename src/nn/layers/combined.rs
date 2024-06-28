@@ -1,3 +1,5 @@
+use crate::tensor::TensorRef;
+
 use super::{Layer, LayerBuilder};
 
 pub struct CombinedLayer<L1: Layer, L2: Layer<InputShape = L1::OutputShape>>
@@ -14,6 +16,12 @@ impl<L1: Layer, L2: Layer<InputShape = L1::OutputShape>> Layer for CombinedLayer
     fn forward(&self, input: crate::tensor::Tensor<Self::InputShape>) -> crate::tensor::Tensor<Self::OutputShape> {
         let intermediate = self.layer1.forward(input);
         return self.layer2.forward(intermediate);
+    }
+    
+    fn get_tensors(&self) -> Vec<TensorRef> {
+        self.layer1.get_tensors().into_iter()
+            .chain(self.layer2.get_tensors())
+            .collect()
     }
 }
 

@@ -7,6 +7,7 @@ mod sigmoid;
 mod tanh;
 mod cross_entropy;
 mod conv2d;
+mod reshape;
 //mod pool;
 
 use downcast_rs::{impl_downcast, DowncastSync};
@@ -18,6 +19,7 @@ pub use softmax::softmax;
 pub use sigmoid::sigmoid;
 pub use tanh::tanh;
 pub use conv2d::conv2d;
+pub use reshape::reshape;
 //pub use pool::{maxpool, maxpool2d};
 
 use crate::{device::Device, tensor::{Shape, Tensor}};

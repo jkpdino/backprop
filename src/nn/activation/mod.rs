@@ -34,6 +34,11 @@ pub enum Activation {
     /// However, it still has the vanishing gradient problem.
     /// 
     Tanh,
+
+    ///
+    /// The linear activation function simply returns the values it recieves
+    /// 
+    Linear
 }
 
 impl Activation {
@@ -43,6 +48,7 @@ impl Activation {
             Activation::Softmax => softmax(input),
             Activation::Sigmoid => sigmoid(input),
             Activation::Tanh => tanh(input),
+            Activation::Linear => input,
         }
     }
 }
